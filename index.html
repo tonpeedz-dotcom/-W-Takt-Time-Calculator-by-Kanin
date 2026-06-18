@@ -81,7 +81,6 @@ td { padding:13px 12px; border-bottom:1px solid var(--border); font-size:0.95rem
 
 <div class="dashboard-grid">
 
-  <!-- LEFT -->
   <div class="panel">
     <div class="panel-header">⚙️ DATA PARAMETERS</div>
     <div class="panel-body">
@@ -113,10 +112,8 @@ td { padding:13px 12px; border-bottom:1px solid var(--border); font-size:0.95rem
     </div>
   </div>
 
-  <!-- RIGHT -->
   <div class="results-container">
 
-    <!-- HOURLY TABLE -->
     <div class="panel">
       <div class="panel-header">
         📊 HOURLY PRODUCTION BREAKDOWN
@@ -138,7 +135,6 @@ td { padding:13px 12px; border-bottom:1px solid var(--border); font-size:0.95rem
       </div>
     </div>
 
-    <!-- PROCESS TAKT TIME -->
     <div class="panel">
       <div class="panel-header">⏱️ PROCESS TAKT TIME CALCULATION</div>
       <div style="overflow-x:auto;">
@@ -160,8 +156,16 @@ td { padding:13px 12px; border-bottom:1px solid var(--border); font-size:0.95rem
 </div>
 
 <script>
-const BASE_HOURS = [44,45,37,45,44,45,37,44];
-const OT_MAP = { "0.5":[22], "1.0":[45], "1.5":[45,22], "2.0":[45,44] };
+// แปลงจำนวนคันเป็น "วินาทีทำงานต่อชั่วโมง" โดยอิงจาก Base Takt Time เดิม (81 วิ)
+// วิธีนี้ทำให้เมื่อเราเปลี่ยน Main Takt Time โปรแกรมจะเอาเวลาที่มีไปหารให้ได้ Volume ใหม่
+const BASE_SECONDS = [44*81, 45*81, 37*81, 45*81, 44*81, 45*81, 37*81, 44*81];
+const OT_SECONDS_MAP = { 
+  "0.5": [22*81], 
+  "1.0": [45*81], 
+  "1.5": [45*81, 22*81], 
+  "2.0": [45*81, 44*81] 
+};
+
 const MODELS = [
   {key:"C", label:"C-CAB", cls:"ccab-col"},
   {key:"D", label:"D-CAB", cls:"dcab-col"},
@@ -191,7 +195,6 @@ function getRatios() {
 }
 function getMainTT() { return parseFloat(document.getElementById("mainTT").value) || 0; }
 
-// แจกจ่ายรุ่น: floor 3 รุ่นแรก, รุ่นสุดท้ายรับส่วนที่เหลือ → รวม = vol เสมอ
 function distributeModels(vol, ratios) {
   const total = ratios.C + ratios.D + ratios.S + ratios["5"];
   if (total <= 0) return {C:0,D:0,S:0,"5":0};
@@ -251,11 +254,15 @@ function buildHourRow(hrLabel, vol, isOT, ratios) {
 
 function calculateAll() {
   const mainTT = getMainTT();
+  if (mainTT <= 0) return; // ป้องกันบักหารด้วยศูนย์
+
   const ratios = getRatios();
   const otType = document.getElementById("otType").value;
-  const otExtra = OT_MAP[otType] || [];
+  
+  // แปลงเวลาวินาทีกลับมาเป็น Plan (คัน) โดยหารด้วย Main Takt Time ใหม่
+  const currentBaseHours = BASE_SECONDS.map(sec => Math.floor(sec / mainTT));
+  const otExtra = (OT_SECONDS_MAP[otType] || []).map(sec => Math.floor(sec / mainTT));
 
-  // ratio sum indicator
   const rSum = ratios.C + ratios.D + ratios.S + ratios["5"];
   const sumEl = document.getElementById("ratioSum");
   sumEl.textContent = rSum.toFixed(1) + "%";
@@ -263,14 +270,13 @@ function calculateAll() {
 
   dc = 0;
   let html = "";
-  let totPlan8 = BASE_HOURS.reduce((a,b) => a+b, 0);
+  let totPlan8 = currentBaseHours.reduce((a,b) => a+b, 0);
 
   // ── 8 ชั่วโมงปกติ ──
-  BASE_HOURS.forEach((vol, i) => {
+  currentBaseHours.forEach((vol, i) => {
     html += buildHourRow(i + 1, vol, false, ratios);
   });
 
-  // Target 97% ของ 8h คำนวณครั้งเดียวจาก Total
   const tgt8 = Math.round(totPlan8 * 0.97);
   html += `<tr class="total-row">
     <td>TOTAL (8 ชั่วโมง)</td>
@@ -329,3 +335,4 @@ window.onload = calculateAll;
 </script>
 </body>
 </html>
+
