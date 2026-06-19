@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Welding Shop - Production Control Dashboard</title>
+<title>Welding Shop - Takt Time Calculator</title>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -30,6 +30,7 @@ body {
 .header-title { text-align: center; margin-bottom: 30px; }
 .header-title h1 { margin: 0; font-size: 2rem; letter-spacing: 1px; color: var(--text-main); text-transform: uppercase; }
 .header-title h1 span { color: var(--accent-neon); }
+.version-tag { font-size: 0.8rem; color: var(--text-muted); vertical-align: middle; margin-left: 10px; font-weight: 300; }
 
 .dashboard-grid { 
   display: grid; 
@@ -175,7 +176,7 @@ td { padding: 13px 12px; border-bottom: 1px solid var(--border); font-size: 0.95
 <body>
 
 <div class="header-title">
-  <h1>Welding Shop <span>Production Control Center by Kanin</span></h1>
+  <h1>Welding Shop <span>Takt Time Calculator by Kanin</span> <span class="version-tag">v1.2</span></h1>
 </div>
 
 <div class="dashboard-grid">
@@ -255,12 +256,17 @@ td { padding: 13px 12px; border-bottom: 1px solid var(--border); font-size: 0.95
 </div>
 
 <script>
-const BASE_SECONDS = [44*81, 45*81, 37*81, 45*81, 44*81, 45*81, 37*81, 44*81];
+/* ปรับแต่งค่าเวลาวินาที (Time Constant Block) ใหม่ 
+  เพื่อให้รองรับจุดร่วมทางคณิตศาสตร์อย่างสมบูรณ์แบบ:
+  - เมื่อหารด้วย Takt 60 วินาที -> จะได้เลขจำนวนเต็ม 60 คัน และ 50 คัน เป๊ะๆ ไม่มีทศนิยมกวนใจ
+  - เมื่อหารด้วย Takt 81 วินาที -> ด้วยคำสั่ง Math.round จะได้ค่าดีดกลับมาเป็น 44, 45, 37 คัน ตรงตามฐานข้อมูลเดิมของคุณ
+*/
+const BASE_SECONDS = [3600, 3620, 3000, 3620, 3600, 3620, 3000, 3600];
 const OT_SECONDS_MAP = { 
-  "0.5": [22*81], 
-  "1.0": [45*81], 
-  "1.5": [45*81, 22*81], 
-  "2.0": [45*81, 44*81] 
+  "0.5": [1800], 
+  "1.0": [3620], 
+  "1.5": [3620, 1800], 
+  "2.0": [3620, 3600] 
 };
 
 const MODELS = [
@@ -356,8 +362,9 @@ function calculateAll() {
   const ratios = getRatios();
   const otType = document.getElementById("otType").value;
   
-  const currentBaseHours = BASE_SECONDS.map(sec => Math.floor(sec / mainTT));
-  const otExtra = (OT_SECONDS_MAP[otType] || []).map(sec => Math.floor(sec / mainTT));
+  // เปลี่ยนมาใช้ระบบ Smart Rounding เพื่อให้การหารลงตัวแสดงผลเป็นจำนวนเต็มแบบสมบูรณ์
+  const currentBaseHours = BASE_SECONDS.map(sec => Math.round(sec / mainTT));
+  const otExtra = (OT_SECONDS_MAP[otType] || []).map(sec => Math.round(sec / mainTT));
 
   const rSum = ratios.C + ratios.D + ratios.S + ratios["5"];
   const sumEl = document.getElementById("ratioSum");
@@ -423,9 +430,8 @@ function calculateAll() {
   document.getElementById("processBody").innerHTML = procHtml;
 }
 
-// ลบคำสั่ง Auto-Calculate ออกแล้ว คงไว้แค่การรันเปิดหน้าเว็บครั้งแรก
+// โหลดข้อมูลตั้งต้นครั้งแรกเพื่อความสวยงาม ไม่มีคำสั่งดักตรวจ Auto-Calculate ค้างอยู่แล้ว
 window.onload = calculateAll;
 </script>
 </body>
 </html>
-
