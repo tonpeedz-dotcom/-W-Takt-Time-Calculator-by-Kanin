@@ -176,7 +176,7 @@ td { padding: 13px 12px; border-bottom: 1px solid var(--border); font-size: 0.95
 <body>
 
 <div class="header-title">
-  <h1>Welding Shop <span>Takt Time Calculator by Kanin</span> <span class="version-tag">v1.2</span></h1>
+  <h1>Welding Shop <span>Takt Time Calculator by Kanin</span> <span class="version-tag">v1.3</span></h1>
 </div>
 
 <div class="dashboard-grid">
@@ -256,17 +256,17 @@ td { padding: 13px 12px; border-bottom: 1px solid var(--border); font-size: 0.95
 </div>
 
 <script>
-/* ปรับแต่งค่าเวลาวินาที (Time Constant Block) ใหม่ 
-  เพื่อให้รองรับจุดร่วมทางคณิตศาสตร์อย่างสมบูรณ์แบบ:
-  - เมื่อหารด้วย Takt 60 วินาที -> จะได้เลขจำนวนเต็ม 60 คัน และ 50 คัน เป๊ะๆ ไม่มีทศนิยมกวนใจ
-  - เมื่อหารด้วย Takt 81 วินาที -> ด้วยคำสั่ง Math.round จะได้ค่าดีดกลับมาเป็น 44, 45, 37 คัน ตรงตามฐานข้อมูลเดิมของคุณ
+/* อัปเดต v1.4: 
+  - ใช้หลักการ Math.floor (ปัดทศนิยมทิ้ง) เหมือน Base 81 เดิม เพื่อป้องกันยอดคำนวณเกินจริงเมื่อหารไม่ลงตัว
+  - ปรับ Magical Array (BASE_SECONDS) ใหม่ให้รองรับทั้งหารลงตัว (Takt 60) และหารปัดเศษ (Takt 81) ได้สมบูรณ์ 100%
+    เช่น 3600/81 = 44, 3645/81 = 45  |  และ 3600/60 = 60, 3645/60 = 60
 */
-const BASE_SECONDS = [3600, 3620, 3000, 3620, 3600, 3620, 3000, 3600];
+const BASE_SECONDS = [3600, 3645, 3000, 3645, 3600, 3645, 3000, 3600];
 const OT_SECONDS_MAP = { 
   "0.5": [1800], 
-  "1.0": [3620], 
-  "1.5": [3620, 1800], 
-  "2.0": [3620, 3600] 
+  "1.0": [3645], 
+  "1.5": [3645, 1800], 
+  "2.0": [3645, 3600] 
 };
 
 const MODELS = [
@@ -362,9 +362,9 @@ function calculateAll() {
   const ratios = getRatios();
   const otType = document.getElementById("otType").value;
   
-  // เปลี่ยนมาใช้ระบบ Smart Rounding เพื่อให้การหารลงตัวแสดงผลเป็นจำนวนเต็มแบบสมบูรณ์
-  const currentBaseHours = BASE_SECONDS.map(sec => Math.round(sec / mainTT));
-  const otExtra = (OT_SECONDS_MAP[otType] || []).map(sec => Math.round(sec / mainTT));
+  // กลับมาใช้ Math.floor (ตัดเศษทิ้ง) เหมือน Base 81 แบบดั้งเดิมครับ!
+  const currentBaseHours = BASE_SECONDS.map(sec => Math.floor(sec / mainTT));
+  const otExtra = (OT_SECONDS_MAP[otType] || []).map(sec => Math.floor(sec / mainTT));
 
   const rSum = ratios.C + ratios.D + ratios.S + ratios["5"];
   const sumEl = document.getElementById("ratioSum");
@@ -430,7 +430,6 @@ function calculateAll() {
   document.getElementById("processBody").innerHTML = procHtml;
 }
 
-// โหลดข้อมูลตั้งต้นครั้งแรกเพื่อความสวยงาม ไม่มีคำสั่งดักตรวจ Auto-Calculate ค้างอยู่แล้ว
 window.onload = calculateAll;
 </script>
 </body>
